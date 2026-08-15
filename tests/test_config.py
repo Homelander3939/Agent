@@ -54,3 +54,25 @@ def test_api_key_env_resolution(monkeypatch, tmp_path):
     config = load_config(str(cfg_path))
     openai_cfg = next(p for p in config.providers if p.name == "openai")
     assert openai_cfg.resolve_api_key() == "test-key-123"
+
+
+def test_lmstudio_api_key_env_falls_back_to_placeholder(monkeypatch, tmp_path):
+    monkeypatch.delenv("AGENT_CONFIG", raising=False)
+    monkeypatch.delenv("LMSTUDIO_API_KEY", raising=False)
+    monkeypatch.chdir(tmp_path)
+    config = load_config()
+    lmstudio_cfg = next(p for p in config.providers if p.name == "lmstudio")
+    assert lmstudio_cfg.api_key_env == "LMSTUDIO_API_KEY"
+    # No LMSTUDIO_API_KEY set -> falls back to the placeholder api_key value
+    # rather than returning None (LM Studio's server ignores the value
+    # anyway, but a real key should still take priority when present).
+    assert lmstudio_cfg.resolve_api_key() == "lm-studio"
+
+
+def test_lmstudio_api_key_env_takes_priority_when_set(monkeypatch, tmp_path):
+    monkeypatch.delenv("AGENT_CONFIG", raising=False)
+    monkeypatch.chdir(tmp_path)
+    monkeypatch.setenv("LMSTUDIO_API_KEY", "secret-lmstudio-key")
+    config = load_config()
+    lmstudio_cfg = next(p for p in config.providers if p.name == "lmstudio")
+    assert lmstudio_cfg.resolve_api_key() == "secret-lmstudio-key"

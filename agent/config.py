@@ -42,6 +42,11 @@ DEFAULT_CONFIG: Dict[str, Any] = {
             "type": "openai_compatible",
             "base_url": "http://localhost:1234/v1",
             "api_key": "lm-studio",
+            # LM Studio's local server usually needs no key at all, but recent
+            # versions let you require one (Settings -> Local Server -> "API
+            # key"). Set LMSTUDIO_API_KEY in .env to supply it; falls back to
+            # the placeholder "lm-studio" value above when unset.
+            "api_key_env": "LMSTUDIO_API_KEY",
             "model": "local-model",
             "enabled": False,
             "timeout": 120,
@@ -116,7 +121,9 @@ class ProviderConfig:
 
     def resolve_api_key(self) -> Optional[str]:
         if self.api_key_env:
-            return os.environ.get(self.api_key_env)
+            env_value = os.environ.get(self.api_key_env)
+            if env_value:
+                return env_value
         return self.api_key
 
 

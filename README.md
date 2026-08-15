@@ -59,11 +59,34 @@ cp .env.example .env              # only needed if you enable a cloud provider
 
 To use **LM Studio** instead: start its local server (Settings → Local
 Server), then in `config.yaml` set `lmstudio.enabled: true` (and optionally
-`ollama.enabled: false`).
+`ollama.enabled: false`). If you turned on LM Studio's optional "require API
+key" setting for the local server, put that key in `.env` as
+`LMSTUDIO_API_KEY=...`; otherwise leave it blank.
 
 To add a **cloud fallback**, set `enabled: true` on the `openai` and/or
 `anthropic` provider entries and put the corresponding API key in `.env`.
 Cloud providers are only ever called if every local provider fails.
+
+## Windows quick start (LM Studio, no Python required)
+
+1. Install [LM Studio](https://lmstudio.ai/) for Windows, download a model
+   from its "Discover" tab (e.g. `qwen2.5-32b-instruct`), and start the
+   **Local Server** (the sidebar tab with the `<->` icon) — note the port,
+   `1234` by default.
+2. Download the latest `local-agent-portable-windows.zip` from this repo's
+   [Releases](../../releases) (or a workflow run of
+   `.github/workflows/build-portable.yml`) and unzip it anywhere.
+3. Double-click `Start-Agent.bat`. On first run it copies the bundled
+   `config.example.yaml`/`.env.example` to `config.yaml`/`.env` for you, then
+   launches the web UI in your browser.
+4. Edit `config.yaml`: set `lmstudio.enabled: true` (and `ollama.enabled:
+   false` if Ollama isn't also installed). Save, close the console window,
+   and double-click `Start-Agent.bat` again.
+5. Ask it to build something, e.g. *"Create a fully working to-do list web
+   app with HTML/CSS/JS in this folder and open it in the browser tool to
+   verify it works."* The agent can run shell commands (npm, git, ...),
+   fetch real assets and docs from the internet, and edit its own project
+   files — no cloud API key is required for any of this.
 
 ## Configuration
 
