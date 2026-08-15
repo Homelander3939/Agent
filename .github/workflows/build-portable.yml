@@ -46,20 +46,26 @@ jobs:
         with:
           files: dist/local-agent-portable-windows.zip
 
-      # Rolling "latest" release: every push to `main` re-publishes a
-      # release tagged `latest`, overwriting its zip asset. This gives a
-      # single, permanent public URL that always serves the newest build:
+      # Rolling release: every push to `main` re-publishes a release tagged
+      # `latest-build`, overwriting its zip asset (the underlying git tag
+      # stays pinned to whichever commit first created it -- GitHub does not
+      # move a tag just because a release is updated -- but the asset
+      # content itself is always replaced with the newest build, and
+      # `make_latest: true` keeps this release marked as GitHub's "latest
+      # release" for the repo). This gives a single, permanent public URL
+      # that always serves the newest build:
       #   https://github.com/<owner>/<repo>/releases/latest/download/local-agent-portable-windows.zip
       - name: Publish rolling latest release
         if: github.ref == 'refs/heads/main'
         uses: softprops/action-gh-release@v2
         with:
-          tag_name: latest
+          tag_name: latest-build
+          target_commitish: ${{ github.sha }}
           name: Latest build (auto-updated)
           body: >
             Automated rolling build from the latest commit on `main`
-            (${{ github.sha }}). This release and its asset are replaced on
-            every push, so the download link below always points to the
+            (${{ github.sha }}). This release's asset is replaced on every
+            push to `main`, so the download link below always points to the
             newest version.
           make_latest: true
           files: dist/local-agent-portable-windows.zip

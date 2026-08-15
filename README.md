@@ -157,8 +157,8 @@ get the Windows build either run the command above **on Windows**, or
 trigger the included GitHub Actions workflow
 (`.github/workflows/build-portable.yml`, runs on `windows-latest`) via
 "Run workflow". It runs automatically on every push to `main`, publishing
-`local-agent-portable-windows.zip` to a rolling `latest` GitHub Release
-(permanent link:
+`local-agent-portable-windows.zip` to a rolling `latest-build` GitHub
+Release marked as the repo's "latest" release (permanent link:
 `releases/latest/download/local-agent-portable-windows.zip`), and it also
 publishes a dedicated versioned release when a `v*` tag is pushed.
 
