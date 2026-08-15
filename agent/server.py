@@ -171,10 +171,17 @@ def _already_running_here(host: str, port: int) -> bool:
     running) is what's holding the port, so a second launch can just reuse
     it instead of crashing with an unhandled "address already in use"
     error -- which used to leave the stale old instance as the only thing
-    serving requests, hiding whatever UI changes shipped in the new build."""
+    serving requests, hiding whatever UI changes shipped in the new build.
+
+    Beyond a 200 status, the response body is checked for this app's
+    specific ``{"providers": [...]}`` shape so an unrelated local service
+    that happens to answer on the same port/path isn't mistaken for us."""
     try:
         resp = requests.get(f"http://{host}:{port}/api/providers", timeout=1.5)
-        return resp.status_code == 200
+        if resp.status_code != 200:
+            return False
+        data = resp.json()
+        return isinstance(data, dict) and isinstance(data.get("providers"), list)
     except Exception:
         return False
 

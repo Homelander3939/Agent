@@ -185,6 +185,9 @@ def test_already_running_here_true_when_our_api_responds(monkeypatch):
     class FakeResponse:
         status_code = 200
 
+        def json(self):
+            return {"providers": [{"name": "lmstudio"}]}
+
     monkeypatch.setattr(requests, "get", lambda url, timeout: FakeResponse())
     assert _already_running_here("127.0.0.1", 8765) is True
 
@@ -196,4 +199,20 @@ def test_already_running_here_false_when_unreachable(monkeypatch):
         raise requests.ConnectionError("nope")
 
     monkeypatch.setattr(requests, "get", fake_get)
+    assert _already_running_here("127.0.0.1", 8765) is False
+
+
+def test_already_running_here_false_for_unrelated_server_on_same_port(monkeypatch):
+    """A 200 response that doesn't match our providers JSON shape (e.g. some
+    other local service happens to be on that port/path) must not be
+    mistaken for an already-running copy of this app."""
+    from agent.server import _already_running_here
+
+    class FakeResponse:
+        status_code = 200
+
+        def json(self):
+            return {"unrelated": "shape"}
+
+    monkeypatch.setattr(requests, "get", lambda url, timeout: FakeResponse())
     assert _already_running_here("127.0.0.1", 8765) is False

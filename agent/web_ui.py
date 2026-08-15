@@ -319,6 +319,7 @@ const scanResults = document.getElementById('scanResults');
 const providerList = document.getElementById('providerList');
 const toast = document.getElementById('toast');
 const emptyState = document.getElementById('emptyState');
+const emptyStatus = document.getElementById('emptyStatus');
 const emptyStatusDot = document.getElementById('emptyStatusDot');
 const emptyStatusText = document.getElementById('emptyStatusText');
 const connectBtn = document.getElementById('connectBtn');
@@ -474,8 +475,12 @@ clearBtn.addEventListener('click', async () => {
 
 function setStatusIndicators(dotOk, text) {
   statusDot.classList.toggle('ok', dotOk);
+  statusDot.classList.toggle('bad', !dotOk);
   statusText.textContent = text;
   emptyStatusDot.classList.toggle('ok', dotOk);
+  emptyStatusDot.classList.toggle('bad', !dotOk);
+  emptyStatus.classList.toggle('ok', dotOk);
+  emptyStatus.classList.toggle('bad', !dotOk);
   emptyStatusText.textContent = dotOk ? 'Connected \\u00b7 ' + text : text;
 }
 
