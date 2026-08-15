@@ -28,8 +28,12 @@ or Linux, with a portable, double-click Windows build available via CI.
   execution, a real Chromium browser (navigate/click/type/read/screenshot/
   run JS), web search + fetch (no API key required), persistent memory, and
   a todo/checklist tool to keep long multi-step tasks on track.
-- **Two ways to use it:** an interactive CLI (`local-agent`) or a minimal
-  local web chat UI (`local-agent --serve`) that opens in your browser.
+- **Two ways to use it:** an interactive CLI (`local-agent`) or a modern
+  local web chat UI (`local-agent --serve`) that opens in your browser,
+  complete with a **Settings** panel that scans localhost for running
+  Ollama/LM Studio/other OpenAI-compatible servers, lists their available
+  models, and lets you switch the active model with one click -- no YAML
+  editing or restart required.
 - **Portable Windows build:** a PyInstaller-based packaging script + GitHub
   Actions workflow produce a single folder you unzip and run via
   `Start-Agent.bat` — no Python install required on the target machine.
@@ -49,7 +53,9 @@ cp .env.example .env              # only needed if you enable a cloud provider
    ```
    (Other good local choices in the 27B-32B range: `gemma2:27b`,
    `command-r:35b`; smaller/faster: `llama3.1:8b`, `qwen2.5:14b`.)
-2. Edit `config.yaml` if your model name differs from the default.
+2. Edit `config.yaml` if your model name differs from the default -- or
+   skip this step and use the web UI's **Settings** panel instead (see
+   below), which can detect it for you.
 3. Run the agent:
    ```bash
    local-agent                 # interactive CLI
@@ -66,6 +72,26 @@ key" setting for the local server, put that key in `.env` as
 To add a **cloud fallback**, set `enabled: true` on the `openai` and/or
 `anthropic` provider entries and put the corresponding API key in `.env`.
 Cloud providers are only ever called if every local provider fails.
+
+### Configuring your local model from the web UI
+
+You don't have to hand-edit YAML to point the agent at your local model.
+Open the web UI (`local-agent --serve`) and click **⚙️ Settings**:
+
+- **🔍 Scan localhost for running servers** probes the well-known ports for
+  Ollama, LM Studio, and other OpenAI-compatible local runtimes (vLLM,
+  text-generation-webui, LocalAI, ...) and lists which ones are actually
+  running right now, along with every model each one currently has
+  loaded/pulled.
+- Click a model in the results to make it the active provider immediately
+  -- no restart required -- and the choice is written back to `config.yaml`
+  so it's remembered next time you launch.
+- The **Configured providers** list lets you toggle any provider on/off and
+  edit its base URL/model directly.
+- **Add a custom server** wires up any other OpenAI-compatible endpoint by
+  URL if it isn't one of the auto-detected ones.
+- The status pill in the header always shows which provider/model is
+  currently active.
 
 ## Windows quick start (LM Studio, no Python required)
 
@@ -85,9 +111,12 @@ Cloud providers are only ever called if every local provider fails.
 3. Double-click `Start-Agent.bat`. On first run it copies the bundled
    `config.example.yaml`/`.env.example` to `config.yaml`/`.env` for you, then
    launches the web UI in your browser.
-4. Edit `config.yaml`: set `lmstudio.enabled: true` (and `ollama.enabled:
-   false` if Ollama isn't also installed). Save, close the console window,
-   and double-click `Start-Agent.bat` again.
+4. In the web UI, click **⚙️ Settings → 🔍 Scan localhost for running
+   servers**, then click the model shown under `lmstudio` to activate it
+   instantly (no need to edit `config.yaml` or restart). Alternatively,
+   edit `config.yaml` directly: set `lmstudio.enabled: true` (and
+   `ollama.enabled: false` if Ollama isn't also installed), save, close the
+   console window, and double-click `Start-Agent.bat` again.
 5. Ask it to build something, e.g. *"Create a fully working to-do list web
    app with HTML/CSS/JS in this folder and open it in the browser tool to
    verify it works."* The agent can run shell commands (npm, git, ...),

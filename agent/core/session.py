@@ -3,11 +3,12 @@ agent session -- the object the CLI and web UI both drive.
 """
 from __future__ import annotations
 
+import copy
 from typing import List, Optional
 
-from agent.config import Config, load_config
+from agent.config import Config, ProviderConfig, load_config, save_config
 from agent.core.agent_loop import AgentLoop, AgentLoopResult
-from agent.providers.base import ChatMessage
+from agent.providers.base import ChatMessage, ProviderError
 from agent.providers.router import ProviderRouter
 from agent.tools.base import ToolRegistry
 from agent.tools.browser import BrowserSession, build_browser_tools
@@ -20,8 +21,9 @@ from agent.tools.web import build_web_tools
 
 
 class AgentSession:
-    def __init__(self, config: Optional[Config] = None):
-        self.config = config or load_config()
+    def __init__(self, config: Optional[Config] = None, config_path: Optional[str] = None):
+        self.config = config or load_config(config_path)
+        self.config_path = config_path
         self.registry = ToolRegistry()
         self.browser_session: Optional[BrowserSession] = None
         self._register_tools()
@@ -63,6 +65,76 @@ class AgentSession:
         self.history.append(ChatMessage(role="assistant", content=result.final_answer))
         self.history = self.history[-self.config.agent.history_limit :]
         return result
+
+    def configure_provider(
+        self,
+        name: str,
+        *,
+        base_url: Optional[str] = None,
+        model: Optional[str] = None,
+        enabled: Optional[bool] = None,
+        api_key: Optional[str] = None,
+        provider_type: str = "openai_compatible",
+        exclusive: bool = False,
+    ) -> ProviderConfig:
+        """Add or update a provider entry (used by the settings panel to
+        wire up a locally-discovered server), rebuild the router so the
+        change takes effect immediately, and persist it to disk.
+
+        If ``exclusive`` is true, every other provider is disabled first so
+        the chosen local model is the only one tried -- handy for "just use
+        this one" from the discovery/scan UI.
+
+        Raises :class:`ProviderError` (and leaves the configuration
+        untouched) if applying the update would leave zero providers
+        enabled, so a bad request can never brick a running session.
+        """
+        previous_providers = copy.deepcopy(self.config.providers)
+        previous_router = self.router
+
+        existing = next((p for p in self.config.providers if p.name == name), None)
+        if exclusive:
+            for p in self.config.providers:
+                if p is not existing:
+                    p.enabled = False
+
+        if existing is None:
+            existing = ProviderConfig(
+                name=name,
+                type=provider_type,
+                base_url=base_url or "",
+                model=model or "",
+                api_key=api_key,
+                enabled=enabled if enabled is not None else True,
+            )
+            # New custom local providers go to the front so they're tried
+            # before any pre-existing cloud fallback (local-first ordering).
+            self.config.providers.insert(0, existing)
+        else:
+            if base_url is not None:
+                existing.base_url = base_url
+            if model is not None:
+                existing.model = model
+            if api_key is not None:
+                existing.api_key = api_key
+            existing.enabled = enabled if enabled is not None else (True if exclusive else existing.enabled)
+
+        try:
+            self.rebuild_router()
+        except ProviderError:
+            self.config.providers = previous_providers
+            self.router = previous_router
+            self.loop.router = previous_router
+            raise
+        self.persist_config()
+        return existing
+
+    def rebuild_router(self) -> None:
+        self.router = ProviderRouter(self.config)
+        self.loop.router = self.router
+
+    def persist_config(self) -> None:
+        save_config(self.config, self.config_path)
 
     def close(self) -> None:
         if self.browser_session is not None:
