@@ -2,7 +2,7 @@
 
 Configuration is resolved, in increasing priority order, from:
 
-1. Built-in defaults (local-first: Ollama on ``http://localhost:11434``).
+1. Built-in defaults (local-first: LM Studio on ``http://localhost:1234``).
 2. A YAML config file (``config.yaml`` in the current directory, or the
    path given by the ``AGENT_CONFIG`` environment variable).
 3. Environment variables / a ``.env`` file (highest priority), so API keys
@@ -29,15 +29,6 @@ DEFAULT_CONFIG: Dict[str, Any] = {
     # timeout, HTTP error) -- i.e. local models are ALWAYS tried first.
     "providers": [
         {
-            "name": "ollama",
-            "type": "openai_compatible",
-            "base_url": "http://localhost:11434/v1",
-            "api_key": "ollama",  # Ollama ignores the key but the SDK/HTTP shape requires one.
-            "model": "qwen2.5:32b-instruct",
-            "enabled": True,
-            "timeout": 120,
-        },
-        {
             "name": "lmstudio",
             "type": "openai_compatible",
             "base_url": "http://localhost:1234/v1",
@@ -48,6 +39,15 @@ DEFAULT_CONFIG: Dict[str, Any] = {
             # the placeholder "lm-studio" value above when unset.
             "api_key_env": "LMSTUDIO_API_KEY",
             "model": "local-model",
+            "enabled": True,
+            "timeout": 120,
+        },
+        {
+            "name": "ollama",
+            "type": "openai_compatible",
+            "base_url": "http://localhost:11434/v1",
+            "api_key": "ollama",  # Ollama ignores the key but the SDK/HTTP shape requires one.
+            "model": "qwen2.5:32b-instruct",
             "enabled": False,
             "timeout": 120,
         },

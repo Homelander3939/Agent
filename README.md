@@ -33,7 +33,8 @@ or Linux, with a portable, double-click Windows build available via CI.
   complete with a **Settings** panel that scans localhost for running
   Ollama/LM Studio/other OpenAI-compatible servers, lists their available
   models, and lets you switch the active model with one click -- no YAML
-  editing or restart required.
+  editing or restart required. The CLI has the same capability via
+  `/providers`, `/use <name>`, and `/set <name> key=value` commands.
 - **Portable Windows build:** a PyInstaller-based packaging script + GitHub
   Actions workflow produce a single folder you unzip and run via
   `Start-Agent.bat` — no Python install required on the target machine.
@@ -47,12 +48,11 @@ cp config/config.example.yaml config.yaml
 cp .env.example .env              # only needed if you enable a cloud provider
 ```
 
-1. Install [Ollama](https://ollama.com) and pull a model, e.g.:
-   ```bash
-   ollama pull qwen2.5:32b-instruct
-   ```
-   (Other good local choices in the 27B-32B range: `gemma2:27b`,
-   `command-r:35b`; smaller/faster: `llama3.1:8b`, `qwen2.5:14b`.)
+1. Install [LM Studio](https://lmstudio.ai/), download a model, and start its
+   **Local Server** (sidebar tab with the `<->` icon, port `1234` by
+   default). This is the default enabled provider, so no config edit is
+   needed. If you turned on LM Studio's optional "require API key" setting,
+   put that key in `.env` as `LMSTUDIO_API_KEY=...`; otherwise leave it blank.
 2. Edit `config.yaml` if your model name differs from the default -- or
    skip this step and use the web UI's **Settings** panel instead (see
    below), which can detect it for you.
@@ -63,11 +63,9 @@ cp .env.example .env              # only needed if you enable a cloud provider
    local-agent --serve         # local web UI at http://127.0.0.1:8765
    ```
 
-To use **LM Studio** instead: start its local server (Settings → Local
-Server), then in `config.yaml` set `lmstudio.enabled: true` (and optionally
-`ollama.enabled: false`). If you turned on LM Studio's optional "require API
-key" setting for the local server, put that key in `.env` as
-`LMSTUDIO_API_KEY=...`; otherwise leave it blank.
+To use **Ollama** instead: install it, `ollama pull qwen2.5:32b-instruct` (or
+another model), then in `config.yaml` set `ollama.enabled: true` (and
+optionally `lmstudio.enabled: false`).
 
 To add a **cloud fallback**, set `enabled: true` on the `openai` and/or
 `anthropic` provider entries and put the corresponding API key in `.env`.
@@ -93,12 +91,30 @@ Open the web UI (`local-agent --serve`) and click **⚙️ Settings**:
 - The status pill in the header always shows which provider/model is
   currently active.
 
+If `Start-Agent.bat`/`local-agent --serve` is launched while an instance is
+already running, it detects that and just opens your existing window instead
+of crashing with a "port already in use" error; if the port is held by some
+other, unrelated program, it automatically picks the next free port instead.
+
+### Configuring your local model from the CLI
+
+The interactive CLI (`local-agent`) supports the same configuration without
+touching YAML or opening a browser:
+
+```text
+you> /providers                 # list configured providers
+you> /use lmstudio               # make lmstudio the only enabled provider
+you> /set lmstudio base_url=http://localhost:1234/v1 model=my-model
+you> /help                       # show all commands
+```
+
 ## Windows quick start (LM Studio, no Python required)
 
 1. Install [LM Studio](https://lmstudio.ai/) for Windows, download a model
    from its "Discover" tab (e.g. `qwen2.5-32b-instruct`), and start the
    **Local Server** (the sidebar tab with the `<->` icon) — note the port,
-   `1234` by default.
+   `1234` by default. LM Studio is the default provider, so no config
+   changes are required to use it.
 2. Download the portable build (no Python needed) from this permanent link,
    which always points to the newest automated build from `main`:
 
@@ -111,12 +127,10 @@ Open the web UI (`local-agent --serve`) and click **⚙️ Settings**:
 3. Double-click `Start-Agent.bat`. On first run it copies the bundled
    `config.example.yaml`/`.env.example` to `config.yaml`/`.env` for you, then
    launches the web UI in your browser.
-4. In the web UI, click **⚙️ Settings → 🔍 Scan localhost for running
-   servers**, then click the model shown under `lmstudio` to activate it
-   instantly (no need to edit `config.yaml` or restart). Alternatively,
-   edit `config.yaml` directly: set `lmstudio.enabled: true` (and
-   `ollama.enabled: false` if Ollama isn't also installed), save, close the
-   console window, and double-click `Start-Agent.bat` again.
+4. If LM Studio reports a model name other than `local-model`, click
+   **⚙️ Settings → 🔍 Scan localhost for running servers**, then click the
+   model shown under `lmstudio` to activate it instantly (no need to edit
+   `config.yaml` or restart).
 5. Ask it to build something, e.g. *"Create a fully working to-do list web
    app with HTML/CSS/JS in this folder and open it in the browser tool to
    verify it works."* The agent can run shell commands (npm, git, ...),
@@ -130,10 +144,10 @@ the full annotated version):
 
 ```yaml
 providers:
-  - name: ollama
+  - name: lmstudio
     type: openai_compatible
-    base_url: http://localhost:11434/v1
-    model: qwen2.5:32b-instruct
+    base_url: http://localhost:1234/v1
+    model: local-model
     enabled: true
   - name: openai
     type: openai_compatible

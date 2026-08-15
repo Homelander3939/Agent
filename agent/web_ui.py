@@ -71,10 +71,32 @@ INDEX_HTML = """<!DOCTYPE html>
   #log {
     padding: 1.1rem; height: 58vh; overflow-y: auto; scroll-behavior: smooth;
   }
-  #log:empty::before {
-    content: "Ask the agent to do something \\2014 it will use whichever local model is active.";
-    color: var(--muted); font-size: 0.9rem;
+  #log:empty { display: none; }
+  .empty-state {
+    display: flex; flex-direction: column; align-items: center; text-align: center;
+    justify-content: center; height: 58vh; padding: 2rem 1.5rem; gap: 0.5rem;
   }
+  .empty-state.hidden { display: none; }
+  .empty-state-icon {
+    font-size: 2.4rem; width: 72px; height: 72px; border-radius: 50%;
+    display: flex; align-items: center; justify-content: center; margin-bottom: 0.4rem;
+    background: radial-gradient(circle at 30% 30%, rgba(109,139,255,0.35), rgba(124,92,255,0.12));
+    border: 1px solid var(--border);
+  }
+  .empty-state h2 { margin: 0; font-size: 1.15rem; font-weight: 700; }
+  .empty-state .sub { color: var(--muted); font-size: 0.88rem; max-width: 34rem; margin: 0; }
+  .empty-state-status {
+    display: inline-flex; align-items: center; gap: 0.4rem; font-size: 0.82rem; color: var(--muted);
+    margin: 0.3rem 0 0.6rem;
+  }
+  .empty-state-status.ok { color: var(--ok); }
+  .empty-state-status.bad { color: var(--danger); }
+  button.primary-btn {
+    background: linear-gradient(135deg, var(--accent), var(--accent-2)); color: white; border: none;
+    padding: 0.7rem 1.4rem; border-radius: 10px; font-weight: 600; font-size: 0.9rem; cursor: pointer;
+    box-shadow: 0 8px 24px rgba(109,139,255,0.25); transition: transform .05s;
+  }
+  button.primary-btn:active { transform: scale(0.97); }
   .msg { display: flex; gap: 0.6rem; margin: 0 0 1rem; align-items: flex-start; }
   .msg .avatar {
     width: 30px; height: 30px; border-radius: 50%; flex: none;
@@ -230,6 +252,16 @@ INDEX_HTML = """<!DOCTYPE html>
     </header>
 
     <div class="card">
+      <div class="empty-state" id="emptyState">
+        <div class="empty-state-icon">🔌</div>
+        <h2>Connect a local model to get started</h2>
+        <p class="sub">This runs entirely on your machine — no cloud API key required. Point it at LM Studio, Ollama, or any OpenAI-compatible server.</p>
+        <div class="empty-state-status" id="emptyStatus">
+          <span class="status-dot" id="emptyStatusDot"></span>
+          <span id="emptyStatusText">checking...</span>
+        </div>
+        <button class="primary-btn" id="connectBtn">⚙️ Connect a local model</button>
+      </div>
       <div id="log"></div>
       <form id="f">
         <textarea id="prompt" rows="1" autocomplete="off" placeholder="Ask the agent to do something... (Enter to send, Shift+Enter for newline)"></textarea>
@@ -286,6 +318,20 @@ const scanBtn = document.getElementById('scanBtn');
 const scanResults = document.getElementById('scanResults');
 const providerList = document.getElementById('providerList');
 const toast = document.getElementById('toast');
+const emptyState = document.getElementById('emptyState');
+const emptyStatus = document.getElementById('emptyStatus');
+const emptyStatusDot = document.getElementById('emptyStatusDot');
+const emptyStatusText = document.getElementById('emptyStatusText');
+const connectBtn = document.getElementById('connectBtn');
+
+function openSettings() {
+  modalBackdrop.classList.add('open');
+  loadProviders();
+}
+
+function updateEmptyState() {
+  emptyState.classList.toggle('hidden', log.children.length > 0);
+}
 
 function showToast(msg) {
   toast.textContent = msg;
@@ -335,6 +381,7 @@ function appendMessage(role, text, opts) {
       '<div class="bubble-content">' + renderMarkdown(text) + '</div>' +
     '</div>';
   log.appendChild(wrap);
+  updateEmptyState();
   if (role === 'agent' && !opts.error) {
     const actions = document.createElement('div');
     actions.className = 'msg-actions';
@@ -421,9 +468,21 @@ form.addEventListener('submit', async (e) => {
 
 clearBtn.addEventListener('click', async () => {
   log.innerHTML = '';
+  updateEmptyState();
   try { await fetch('/api/chat/clear', {method: 'POST'}); } catch (err) {}
   showToast('Chat cleared');
 });
+
+function setStatusIndicators(dotOk, text) {
+  statusDot.classList.toggle('ok', dotOk);
+  statusDot.classList.toggle('bad', !dotOk);
+  statusText.textContent = text;
+  emptyStatusDot.classList.toggle('ok', dotOk);
+  emptyStatusDot.classList.toggle('bad', !dotOk);
+  emptyStatus.classList.toggle('ok', dotOk);
+  emptyStatus.classList.toggle('bad', !dotOk);
+  emptyStatusText.textContent = dotOk ? 'Connected \\u00b7 ' + text : text;
+}
 
 async function refreshStatus() {
   try {
@@ -431,16 +490,13 @@ async function refreshStatus() {
     const data = await resp.json();
     const active = data.providers.find(p => p.active);
     if (active) {
-      statusDot.classList.add('ok');
-      statusText.textContent = active.name + ' \\u00b7 ' + active.model;
+      setStatusIndicators(true, active.name + ' \\u00b7 ' + active.model);
     } else {
-      statusDot.classList.remove('ok');
-      statusText.textContent = 'no provider enabled';
+      setStatusIndicators(false, 'No provider connected \\u2014 click Connect to set one up');
     }
     return data.providers;
   } catch (err) {
-    statusDot.classList.remove('ok');
-    statusText.textContent = 'unreachable';
+    setStatusIndicators(false, 'Server unreachable');
     return [];
   }
 }
@@ -566,14 +622,16 @@ document.getElementById('customAddBtn').addEventListener('click', async () => {
   }
 });
 
-settingsBtn.addEventListener('click', () => {
-  modalBackdrop.classList.add('open');
-  loadProviders();
+settingsBtn.addEventListener('click', openSettings);
+connectBtn.addEventListener('click', () => {
+  openSettings();
+  scanBtn.click();
 });
 closeSettings.addEventListener('click', () => modalBackdrop.classList.remove('open'));
 modalBackdrop.addEventListener('click', (e) => { if (e.target === modalBackdrop) modalBackdrop.classList.remove('open'); });
 
 refreshStatus();
+updateEmptyState();
 input.focus();
 </script>
 </body>
