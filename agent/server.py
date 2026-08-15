@@ -4,8 +4,10 @@ opens a browser tab -- no separate desktop UI toolkit required.
 """
 from __future__ import annotations
 
+import logging
 import threading
 import webbrowser
+from contextlib import asynccontextmanager
 from typing import Optional
 
 from fastapi import FastAPI
@@ -15,6 +17,8 @@ from pydantic import BaseModel
 from agent.config import load_config
 from agent.core.session import AgentSession
 from agent.providers.base import ProviderError
+
+logger = logging.getLogger(__name__)
 
 INDEX_HTML = """<!DOCTYPE html>
 <html lang=\"en\">
@@ -79,13 +83,15 @@ class ChatRequest(BaseModel):
 
 
 def create_app(config_path: Optional[str] = None) -> FastAPI:
-    app = FastAPI(title="Local Agent Framework")
     config = load_config(config_path)
     session = AgentSession(config)
 
-    @app.on_event("shutdown")
-    def _shutdown():
+    @asynccontextmanager
+    async def lifespan(app: FastAPI):
+        yield
         session.close()
+
+    app = FastAPI(title="Local Agent Framework", lifespan=lifespan)
 
     @app.get("/", response_class=HTMLResponse)
     def index():
@@ -96,7 +102,15 @@ def create_app(config_path: Optional[str] = None) -> FastAPI:
         try:
             result = session.ask(req.prompt)
         except ProviderError as exc:
-            return {"final_answer": f"No provider available: {exc}", "steps": []}
+            logger.warning("Provider error while handling chat request: %s", exc)
+            return {
+                "final_answer": (
+                    "No model provider is currently reachable. Check that your local "
+                    "Ollama/LM Studio server is running (or that a cloud API key is "
+                    "configured), then try again."
+                ),
+                "steps": [],
+            }
         return {
             "final_answer": result.final_answer,
             "steps": [

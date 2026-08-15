@@ -20,6 +20,7 @@ Notes:
 """
 from __future__ import annotations
 
+import os
 import platform
 import shutil
 import subprocess
@@ -47,7 +48,6 @@ def main() -> int:
     browsers_dir = DIST_DIR / "playwright-browsers"
     browsers_dir.mkdir(exist_ok=True)
     env = {"PLAYWRIGHT_BROWSERS_PATH": str(browsers_dir)}
-    import os
 
     run([sys.executable, "-m", "playwright", "install", "chromium"], env={**os.environ, **env})
 

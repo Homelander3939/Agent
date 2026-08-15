@@ -28,6 +28,20 @@ class AnthropicProvider(BaseProvider):
         system_parts = [m.content for m in messages if m.role == "system"]
         conversation = [m for m in messages if m.role != "system"]
 
+        def _to_anthropic_message(m: ChatMessage) -> Dict[str, Any]:
+            if m.role == "tool":
+                return {
+                    "role": "user",
+                    "content": [
+                        {
+                            "type": "tool_result",
+                            "tool_use_id": m.tool_call_id or m.name or "unknown",
+                            "content": m.content,
+                        }
+                    ],
+                }
+            return {"role": m.role, "content": m.content}
+
         url = self.config.base_url.rstrip("/") + "/v1/messages"
         headers = {
             "x-api-key": api_key,
@@ -39,10 +53,7 @@ class AnthropicProvider(BaseProvider):
             "max_tokens": 4096,
             "temperature": temperature,
             "system": "\n".join(system_parts) if system_parts else None,
-            "messages": [
-                {"role": "user" if m.role == "tool" else m.role, "content": m.content}
-                for m in conversation
-            ],
+            "messages": [_to_anthropic_message(m) for m in conversation],
         }
         if tools:
             payload["tools"] = tools
