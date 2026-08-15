@@ -1,0 +1,62 @@
+# Copy this file to config.yaml (or set AGENT_CONFIG=/path/to/this.yaml)
+# and edit the "providers" list. Local providers are tried FIRST, in the
+# order listed here; cloud providers are only used if every enabled local
+# provider fails or is disabled.
+
+providers:
+  # --- Primary: local Ollama server ---------------------------------
+  - name: ollama
+    type: openai_compatible
+    base_url: http://localhost:11434/v1
+    api_key: ollama
+    # Any model you've pulled with `ollama pull <model>`. Good local
+    # options in the 27B-32B class: qwen2.5:32b-instruct, gemma2:27b,
+    # command-r:35b, mixtral:8x7b (MoE, ~13B active).
+    model: qwen2.5:32b-instruct
+    enabled: true
+    timeout: 120
+
+  # --- Primary alternative: LM Studio local server -------------------
+  - name: lmstudio
+    type: openai_compatible
+    base_url: http://localhost:1234/v1
+    api_key: lm-studio
+    # LM Studio's local server usually needs no key at all, but recent
+    # versions let you require one (Settings -> Local Server -> "API key").
+    # Set LMSTUDIO_API_KEY in .env to supply it; otherwise the placeholder
+    # api_key above is sent (LM Studio ignores its value by default).
+    api_key_env: LMSTUDIO_API_KEY
+    model: local-model   # LM Studio ignores this and serves whatever is loaded
+    enabled: false
+    timeout: 120
+
+  # --- Secondary/fallback: OpenAI cloud API --------------------------
+  - name: openai
+    type: openai_compatible
+    base_url: https://api.openai.com/v1
+    api_key_env: OPENAI_API_KEY   # set this in .env, never hard-code the key here
+    model: gpt-4o-mini
+    enabled: false
+    timeout: 120
+
+  # --- Secondary/fallback: Anthropic cloud API -----------------------
+  - name: anthropic
+    type: anthropic
+    base_url: https://api.anthropic.com
+    api_key_env: ANTHROPIC_API_KEY
+    model: claude-3-5-sonnet-latest
+    enabled: false
+    timeout: 120
+
+agent:
+  max_steps: 25
+  temperature: 0.2
+  workspace: .          # folder the agent is allowed to read/write/execute in
+  history_limit: 40
+
+browser:
+  headless: true        # set false to watch the built-in Chromium browser work
+  download_dir: ./agent_downloads
+
+memory:
+  path: ./.agent_memory.json
