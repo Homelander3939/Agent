@@ -12,8 +12,8 @@ def test_default_config_is_local_first(tmp_path, monkeypatch):
     config = load_config()
     enabled = config.enabled_providers()
     assert len(enabled) == 1
-    assert enabled[0].name == "ollama"
-    assert enabled[0].base_url == "http://localhost:11434/v1"
+    assert enabled[0].name == "lmstudio"
+    assert enabled[0].base_url == "http://localhost:1234/v1"
 
 
 def test_yaml_override_can_enable_cloud_fallback(tmp_path):
@@ -22,8 +22,8 @@ def test_yaml_override_can_enable_cloud_fallback(tmp_path):
         textwrap.dedent(
             """
             providers:
-              - name: ollama
-                model: llama3.1:8b
+              - name: lmstudio
+                model: my-local-model
               - name: openai
                 enabled: true
             agent:
@@ -33,9 +33,9 @@ def test_yaml_override_can_enable_cloud_fallback(tmp_path):
     )
     config = load_config(str(cfg_path))
     names = [p.name for p in config.enabled_providers()]
-    assert names == ["ollama", "openai"], "local provider must stay first"
-    ollama = next(p for p in config.providers if p.name == "ollama")
-    assert ollama.model == "llama3.1:8b"
+    assert names == ["lmstudio", "openai"], "local provider must stay first"
+    lmstudio = next(p for p in config.providers if p.name == "lmstudio")
+    assert lmstudio.model == "my-local-model"
     assert config.agent.workspace == "/tmp"
 
 

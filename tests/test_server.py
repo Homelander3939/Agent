@@ -20,6 +20,7 @@ def test_index_serves_html(tmp_path, monkeypatch):
     assert resp.status_code == 200
     assert "Local Agent Framework" in resp.text
     assert "settingsBtn" in resp.text
+    assert resp.headers["cache-control"] == "no-store, no-cache, must-revalidate"
 
 
 def test_chat_returns_provider_error_message_when_unreachable(tmp_path, monkeypatch):
@@ -52,16 +53,16 @@ def test_chat_success_returns_final_answer(tmp_path, monkeypatch):
     assert data["final_answer"] == "hi there"
 
 
-def test_list_providers_reports_ollama_enabled_by_default(tmp_path, monkeypatch):
+def test_list_providers_reports_lmstudio_enabled_by_default(tmp_path, monkeypatch):
     client = _make_client(tmp_path, monkeypatch)
     resp = client.get("/api/providers")
     assert resp.status_code == 200
     providers = resp.json()["providers"]
     names = {p["name"]: p for p in providers}
-    assert names["ollama"]["enabled"] is True
-    assert names["ollama"]["active"] is True
-    assert names["lmstudio"]["enabled"] is False
-    assert names["ollama"]["is_local"] is True
+    assert names["lmstudio"]["enabled"] is True
+    assert names["lmstudio"]["active"] is True
+    assert names["ollama"]["enabled"] is False
+    assert names["lmstudio"]["is_local"] is True
 
 
 def test_discover_endpoint_reports_scanned_servers(tmp_path, monkeypatch):
@@ -128,12 +129,12 @@ def test_configure_custom_provider_adds_new_entry(tmp_path, monkeypatch):
 
 def test_configure_provider_rejects_disabling_all_providers(tmp_path, monkeypatch):
     client = _make_client(tmp_path, monkeypatch)
-    resp = client.post("/api/providers/ollama", json={"enabled": False})
+    resp = client.post("/api/providers/lmstudio", json={"enabled": False})
     assert resp.status_code == 400
     # State must be rolled back, not left half-applied.
     providers = client.get("/api/providers").json()["providers"]
-    ollama = next(p for p in providers if p["name"] == "ollama")
-    assert ollama["enabled"] is True
+    lmstudio = next(p for p in providers if p["name"] == "lmstudio")
+    assert lmstudio["enabled"] is True
 
 
 def test_chat_clear_resets_history(tmp_path, monkeypatch):
@@ -149,3 +150,50 @@ def test_chat_clear_resets_history(tmp_path, monkeypatch):
     resp = client.post("/api/chat/clear")
     assert resp.status_code == 200
     assert resp.json()["ok"] is True
+
+
+def test_find_available_port_returns_requested_port_when_free():
+    import socket
+
+    from agent.server import _find_available_port
+
+    with socket.socket(socket.AF_INET, socket.SOCK_STREAM) as probe:
+        probe.bind(("127.0.0.1", 0))
+        free_port = probe.getsockname()[1]
+    assert _find_available_port("127.0.0.1", free_port) == free_port
+
+
+def test_find_available_port_skips_a_port_in_use():
+    import socket
+
+    from agent.server import _find_available_port
+
+    blocker = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
+    try:
+        blocker.bind(("127.0.0.1", 0))
+        blocker.listen(1)
+        busy_port = blocker.getsockname()[1]
+        found = _find_available_port("127.0.0.1", busy_port)
+        assert found != busy_port
+    finally:
+        blocker.close()
+
+
+def test_already_running_here_true_when_our_api_responds(monkeypatch):
+    from agent.server import _already_running_here
+
+    class FakeResponse:
+        status_code = 200
+
+    monkeypatch.setattr(requests, "get", lambda url, timeout: FakeResponse())
+    assert _already_running_here("127.0.0.1", 8765) is True
+
+
+def test_already_running_here_false_when_unreachable(monkeypatch):
+    from agent.server import _already_running_here
+
+    def fake_get(url, timeout):
+        raise requests.ConnectionError("nope")
+
+    monkeypatch.setattr(requests, "get", fake_get)
+    assert _already_running_here("127.0.0.1", 8765) is False

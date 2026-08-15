@@ -10,11 +10,13 @@ instead of hand-editing YAML.
 from __future__ import annotations
 
 import logging
+import socket
 import threading
 import webbrowser
 from contextlib import asynccontextmanager
 from typing import Any, Dict, List, Optional
 
+import requests
 from fastapi import FastAPI, HTTPException
 from fastapi.responses import HTMLResponse
 from pydantic import BaseModel
@@ -163,11 +165,55 @@ def create_app(config_path: Optional[str] = None) -> FastAPI:
     return app
 
 
+def _already_running_here(host: str, port: int) -> bool:
+    """Best-effort check for whether *this same app* (an older instance,
+    e.g. from a previous double-click of Start-Agent.bat that's still
+    running) is what's holding the port, so a second launch can just reuse
+    it instead of crashing with an unhandled "address already in use"
+    error -- which used to leave the stale old instance as the only thing
+    serving requests, hiding whatever UI changes shipped in the new build."""
+    try:
+        resp = requests.get(f"http://{host}:{port}/api/providers", timeout=1.5)
+        return resp.status_code == 200
+    except Exception:
+        return False
+
+
+def _find_available_port(host: str, start_port: int, attempts: int = 20) -> int:
+    """Return the first free port at/after ``start_port``, verified with a
+    real bind (not just a connect probe) to avoid picking one another
+    process grabs in the meantime."""
+    for port in range(start_port, start_port + attempts):
+        with socket.socket(socket.AF_INET, socket.SOCK_STREAM) as sock:
+            sock.setsockopt(socket.SOL_SOCKET, socket.SO_REUSEADDR, 1)
+            try:
+                sock.bind((host, port))
+            except OSError:
+                continue
+            return port
+    raise OSError(
+        f"No free port found in range {start_port}-{start_port + attempts - 1} on {host}"
+    )
+
+
 def serve(host: str = "127.0.0.1", port: int = 8765, config_path: Optional[str] = None) -> None:
     import uvicorn
 
+    if _already_running_here(host, port):
+        url = f"http://{host}:{port}"
+        print(f"Local Agent Framework is already running at {url} -- opening it instead of starting a second copy.")
+        webbrowser.open(url)
+        return
+
+    actual_port = _find_available_port(host, port)
+    if actual_port != port:
+        print(
+            f"Port {port} is already in use by another program, so Local Agent "
+            f"Framework will use port {actual_port} instead."
+        )
+
     app = create_app(config_path)
-    url = f"http://{host}:{port}"
+    url = f"http://{host}:{actual_port}"
     threading.Timer(1.0, lambda: webbrowser.open(url)).start()
     print(f"Local Agent Framework running at {url}")
-    uvicorn.run(app, host=host, port=port)
+    uvicorn.run(app, host=host, port=actual_port)

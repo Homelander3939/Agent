@@ -13,6 +13,7 @@ import sys
 from rich.console import Console
 from rich.markdown import Markdown
 from rich.panel import Panel
+from rich.table import Table
 
 from agent.config import load_config
 from agent.core.session import AgentSession
@@ -28,10 +29,95 @@ def _print_banner(config) -> None:
             f"[bold cyan]Local Agent Framework[/bold cyan]\n"
             f"Providers (in try-order): [green]{providers}[/green]\n"
             f"Workspace: [yellow]{config.agent.workspace}[/yellow]\n"
-            f"Type a task, or 'exit' to quit.",
+            f"Type a task, '/help' to configure providers/credentials, or 'exit' to quit.",
             title="local-agent",
         )
     )
+
+
+def _print_providers(session: AgentSession) -> None:
+    table = Table(title="Configured providers", header_style="bold cyan")
+    table.add_column("name")
+    table.add_column("enabled")
+    table.add_column("base_url")
+    table.add_column("model")
+    for p in session.config.providers:
+        table.add_row(
+            p.name,
+            "[green]yes[/green]" if p.enabled else "[dim]no[/dim]",
+            p.base_url,
+            p.model,
+        )
+    console.print(table)
+
+
+def _handle_command(session: AgentSession, line: str) -> bool:
+    """Handle a leading-'/' REPL command (provider/credential configuration
+    without needing to hand-edit config.yaml or use the web UI). Returns
+    True if the line was a recognized command."""
+    parts = line.strip().split()
+    if not parts:
+        return False
+    cmd = parts[0].lower()
+
+    if cmd in {"/help", "/?"}:
+        console.print(
+            "[bold]Commands:[/bold]\n"
+            "  /providers                 list configured providers\n"
+            "  /use <name>                make <name> the only enabled provider, e.g. [cyan]/use lmstudio[/cyan]\n"
+            "  /set <name> key=value ...  update a provider's base_url/model/key, e.g.\n"
+            "                             [cyan]/set lmstudio base_url=http://localhost:1234/v1 model=my-model[/cyan]\n"
+            "  /help                      show this message\n"
+            "  exit                       quit"
+        )
+        return True
+
+    if cmd == "/providers":
+        _print_providers(session)
+        return True
+
+    if cmd == "/use":
+        if len(parts) != 2:
+            console.print("[bold red]Usage:[/bold red] /use <provider-name>")
+            return True
+        name = parts[1]
+        try:
+            session.configure_provider(name, enabled=True, exclusive=True)
+            console.print(f"[green]{name} is now the active provider.[/green]")
+        except ProviderError as exc:
+            console.print(f"[bold red]Could not switch:[/bold red] {exc}")
+        return True
+
+    if cmd == "/set":
+        if len(parts) < 3:
+            console.print(
+                "[bold red]Usage:[/bold red] /set <name> key=value [key=value ...] "
+                "(keys: base_url, model, key)"
+            )
+            return True
+        name = parts[1]
+        kwargs: dict = {}
+        for pair in parts[2:]:
+            if "=" not in pair:
+                continue
+            key, _, value = pair.partition("=")
+            if key == "base_url":
+                kwargs["base_url"] = value
+            elif key == "model":
+                kwargs["model"] = value
+            elif key in {"key", "api_key"}:
+                kwargs["api_key"] = value
+        if not kwargs:
+            console.print("[bold red]Nothing to update.[/bold red] Use base_url=/model=/key=")
+            return True
+        try:
+            session.configure_provider(name, **kwargs)
+            console.print(f"[green]{name} updated.[/green]")
+        except ProviderError as exc:
+            console.print(f"[bold red]Could not update:[/bold red] {exc}")
+        return True
+
+    return False
 
 
 def run_single(prompt: str, config_path: str | None) -> int:
@@ -60,11 +146,16 @@ def run_repl(config_path: str | None) -> int:
                 break
             if not prompt.strip():
                 continue
+            if prompt.strip().startswith("/"):
+                if not _handle_command(session, prompt):
+                    console.print("[bold red]Unknown command.[/bold red] Type /help for a list.")
+                continue
             try:
                 with console.status("[bold blue]thinking...[/bold blue]"):
                     result = session.ask(prompt)
             except ProviderError as exc:
                 console.print(f"[bold red]No provider available:[/bold red] {exc}")
+                console.print("[dim]Type /providers to see your providers, or /use <name> to switch (e.g. /use lmstudio).[/dim]")
                 continue
             for step in result.steps:
                 if step.role == "tool":

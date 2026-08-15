@@ -4,19 +4,7 @@
 # provider fails or is disabled.
 
 providers:
-  # --- Primary: local Ollama server ---------------------------------
-  - name: ollama
-    type: openai_compatible
-    base_url: http://localhost:11434/v1
-    api_key: ollama
-    # Any model you've pulled with `ollama pull <model>`. Good local
-    # options in the 27B-32B class: qwen2.5:32b-instruct, gemma2:27b,
-    # command-r:35b, mixtral:8x7b (MoE, ~13B active).
-    model: qwen2.5:32b-instruct
-    enabled: true
-    timeout: 120
-
-  # --- Primary alternative: LM Studio local server -------------------
+  # --- Primary: LM Studio local server --------------------------------
   - name: lmstudio
     type: openai_compatible
     base_url: http://localhost:1234/v1
@@ -27,6 +15,18 @@ providers:
     # api_key above is sent (LM Studio ignores its value by default).
     api_key_env: LMSTUDIO_API_KEY
     model: local-model   # LM Studio ignores this and serves whatever is loaded
+    enabled: true
+    timeout: 120
+
+  # --- Primary alternative: Ollama local server ----------------------
+  - name: ollama
+    type: openai_compatible
+    base_url: http://localhost:11434/v1
+    api_key: ollama
+    # Any model you've pulled with `ollama pull <model>`. Good local
+    # options in the 27B-32B class: qwen2.5:32b-instruct, gemma2:27b,
+    # command-r:35b, mixtral:8x7b (MoE, ~13B active).
+    model: qwen2.5:32b-instruct
     enabled: false
     timeout: 120
 
