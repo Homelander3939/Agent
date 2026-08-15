@@ -73,9 +73,15 @@ Cloud providers are only ever called if every local provider fails.
    from its "Discover" tab (e.g. `qwen2.5-32b-instruct`), and start the
    **Local Server** (the sidebar tab with the `<->` icon) — note the port,
    `1234` by default.
-2. Download the latest `local-agent-portable-windows.zip` from this repo's
-   [Releases](../../releases) (or a workflow run of
-   `.github/workflows/build-portable.yml`) and unzip it anywhere.
+2. Download the portable build (no Python needed) from this permanent link,
+   which always points to the newest automated build from `main`:
+
+   **[`local-agent-portable-windows.zip`](../../releases/latest/download/local-agent-portable-windows.zip)**
+
+   Bookmark that link — it's rebuilt and replaced automatically on every
+   change pushed to `main`, so it always serves the latest version. (Tagged
+   `vX.Y.Z` releases are also published on the [Releases](../../releases)
+   page if you'd rather pin a specific version.) Unzip the download anywhere.
 3. Double-click `Start-Agent.bat`. On first run it copies the bundled
    `config.example.yaml`/`.env.example` to `config.yaml`/`.env` for you, then
    launches the web UI in your browser.
@@ -150,9 +156,11 @@ PyInstaller cannot cross-compile a Windows `.exe` from Linux/macOS, so to
 get the Windows build either run the command above **on Windows**, or
 trigger the included GitHub Actions workflow
 (`.github/workflows/build-portable.yml`, runs on `windows-latest`) via
-"Run workflow" or by pushing a `v*` tag — it uploads
-`local-agent-portable-windows.zip` as a build artifact (and as a release
-asset for tags).
+"Run workflow". It runs automatically on every push to `main`, publishing
+`local-agent-portable-windows.zip` to a rolling `latest-build` GitHub
+Release marked as the repo's "latest" release (permanent link:
+`releases/latest/download/local-agent-portable-windows.zip`), and it also
+publishes a dedicated versioned release when a `v*` tag is pushed.
 
 ## Development
 
