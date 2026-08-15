@@ -193,3 +193,57 @@ def load_config(path: Optional[str] = None) -> Config:
         browser=browser_settings,
         memory=memory_settings,
     )
+
+
+def default_save_path() -> Path:
+    """Where settings changes made from the UI get persisted to, so a
+    provider chosen via the settings panel is still selected next launch."""
+    env_path = os.environ.get("AGENT_CONFIG")
+    if env_path:
+        return Path(env_path)
+    return Path.cwd() / "config.yaml"
+
+
+def config_to_dict(config: Config) -> Dict[str, Any]:
+    """Serialize a :class:`Config` back into a plain dict suitable for
+    ``yaml.safe_dump``. Only the placeholder/non-secret ``api_key`` field is
+    ever written to disk -- real secrets should stay in ``api_key_env`` /
+    ``.env``, which is untouched by this round-trip."""
+    return {
+        "providers": [
+            {
+                "name": p.name,
+                "type": p.type,
+                "base_url": p.base_url,
+                "model": p.model,
+                "api_key": p.api_key,
+                "api_key_env": p.api_key_env,
+                "enabled": p.enabled,
+                "timeout": p.timeout,
+            }
+            for p in config.providers
+        ],
+        "agent": {
+            "max_steps": config.agent.max_steps,
+            "temperature": config.agent.temperature,
+            "workspace": config.agent.workspace,
+            "history_limit": config.agent.history_limit,
+        },
+        "browser": {
+            "headless": config.browser.headless,
+            "download_dir": config.browser.download_dir,
+        },
+        "memory": {
+            "path": config.memory.path,
+        },
+    }
+
+
+def save_config(config: Config, path: Optional[str] = None) -> Path:
+    """Persist ``config`` to a YAML file so changes made through the web UI's
+    settings panel (which provider/model is active) survive a restart."""
+    target = Path(path) if path else default_save_path()
+    target.parent.mkdir(parents=True, exist_ok=True)
+    with open(target, "w", encoding="utf-8") as fh:
+        yaml.safe_dump(config_to_dict(config), fh, sort_keys=False)
+    return target
