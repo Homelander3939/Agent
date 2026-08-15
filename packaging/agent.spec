@@ -12,7 +12,10 @@ import sys
 from pathlib import Path
 
 block_cipher = None
-ROOT = Path(__file__).resolve().parent.parent
+# PyInstaller executes spec files with `exec()`, so `__file__` is not defined
+# in this namespace -- it injects `SPECPATH` (the directory containing this
+# spec file) instead. See PyInstaller's `build_main.py` `build()` function.
+ROOT = Path(SPECPATH).resolve().parent  # noqa: F821
 
 a = Analysis(
     [str(ROOT / "agent" / "__main__.py")],
