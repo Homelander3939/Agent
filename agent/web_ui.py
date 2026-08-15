@@ -294,7 +294,8 @@ function showToast(msg) {
 }
 
 function escapeHtml(s) {
-  return s.replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;');
+  return s.replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;')
+    .replace(/"/g, '&quot;').replace(/'/g, '&#39;');
 }
 
 // Small, dependency-free markdown-lite renderer: fenced code blocks, inline
@@ -449,8 +450,8 @@ function providerRow(p) {
   row.className = 'provider-row';
   row.innerHTML =
     '<label class="switch"><input type="checkbox" ' + (p.enabled ? 'checked' : '') + ' data-role="enabled"><span class="slider"></span></label>' +
-    '<input type="text" class="col-url" value="' + p.base_url.replace(/"/g, '&quot;') + '" data-role="base_url" placeholder="base URL" />' +
-    '<input type="text" value="' + p.model.replace(/"/g, '&quot;') + '" data-role="model" placeholder="model" />' +
+    '<input type="text" class="col-url" value="' + escapeHtml(p.base_url) + '" data-role="base_url" placeholder="base URL" />' +
+    '<input type="text" value="' + escapeHtml(p.model) + '" data-role="model" placeholder="model" />' +
     '<button class="icon-btn" data-role="save">Save</button>';
   row.querySelector('[data-role=save]').addEventListener('click', async () => {
     const enabled = row.querySelector('[data-role=enabled]').checked;
@@ -506,7 +507,7 @@ function serverRow(server) {
   let modelsHtml = '';
   if (server.reachable && server.models.length) {
     modelsHtml = '<div class="model-list">' + server.models.map(m =>
-      '<span class="model-chip" data-model="' + m.replace(/"/g, '&quot;') + '">' + m + '</span>'
+      '<span class="model-chip" data-model="' + escapeHtml(m) + '">' + escapeHtml(m) + '</span>'
     ).join('') + '</div>';
   } else if (server.reachable) {
     modelsHtml = '<div class="hint">Reachable, but no models reported.</div>';
@@ -514,8 +515,8 @@ function serverRow(server) {
     modelsHtml = '<div class="hint">' + escapeHtml(server.error) + '</div>';
   }
   row.innerHTML =
-    '<div class="row-head"><span><span class="name">' + server.name + '</span> ' +
-    '<span class="url">' + server.base_url + '</span></span>' + badge + '</div>' + modelsHtml;
+    '<div class="row-head"><span><span class="name">' + escapeHtml(server.name) + '</span> ' +
+    '<span class="url">' + escapeHtml(server.base_url) + '</span></span>' + badge + '</div>' + modelsHtml;
   row.querySelectorAll('.model-chip').forEach(chip => {
     chip.addEventListener('click', async () => {
       row.querySelectorAll('.model-chip').forEach(c => c.classList.remove('active'));
