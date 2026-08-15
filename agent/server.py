@@ -76,7 +76,16 @@ def create_app(config_path: Optional[str] = None) -> FastAPI:
 
     @app.get("/", response_class=HTMLResponse)
     def index():
-        return INDEX_HTML
+        # Explicitly disable caching so browsers always fetch the latest UI
+        # instead of silently reusing a stale copy from a previous build
+        # (a common source of "why don't I see my changes?" confusion).
+        return HTMLResponse(
+            content=INDEX_HTML,
+            headers={
+                "Cache-Control": "no-store, no-cache, must-revalidate",
+                "Pragma": "no-cache",
+            },
+        )
 
     @app.post("/api/chat")
     def chat(req: ChatRequest):
